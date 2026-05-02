@@ -4,13 +4,15 @@ from dotenv import load_dotenv
 import os
 
 from routers import items, auth
+from routers import portfolio, agent, alerts
+from models.database import create_tables
 
 load_dotenv()
 
 app = FastAPI(
-    title="Ishwarambare API",
-    description="FastAPI backend for ishwarambare.online",
-    version="1.0.0",
+    title="Financial Portfolio Agent API",
+    description="LangGraph-powered portfolio risk analysis with real-time SSE streaming",
+    version="2.0.0",
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
@@ -21,21 +23,34 @@ ALLOWED_ORIGINS = os.getenv(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=["*"],          # allow all origins for SSE compatibility
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ── Create DB tables on startup ───────────────────────────────────────────────
+@app.on_event("startup")
+def on_startup():
+    create_tables()
+
+
 # ── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(items.router, prefix="/api/items", tags=["Items"])
-app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
+app.include_router(items.router,     prefix="/api/items",     tags=["Items"])
+app.include_router(auth.router,      prefix="/api/auth",      tags=["Auth"])
+app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Portfolio"])
+app.include_router(agent.router,     prefix="/api/agent",     tags=["Agent"])
+app.include_router(alerts.router,    prefix="/api/alerts",    tags=["Alerts"])
 
 
 # ── Root & health ─────────────────────────────────────────────────────────────
 @app.get("/", tags=["Root"])
 async def root():
-    return {"message": "Welcome to ishwarambare.online API 🚀", "status": "running"}
+    return {
+        "message": "Financial Portfolio Agent API",
+        "status":  "running",
+        "docs":    "/docs",
+    }
 
 
 @app.get("/health", tags=["Health"])
