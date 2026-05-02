@@ -4,15 +4,14 @@
 **Referenced Files in This Document**
 - [README.md](file://README.md)
 - [backend/main.py](file://backend/main.py)
+- [backend/models/database.py](file://backend/models/database.py)
 - [backend/routers/items.py](file://backend/routers/items.py)
 - [backend/routers/auth.py](file://backend/routers/auth.py)
-- [backend/requirements.txt](file://backend/requirements.txt)
+- [backend/agent/graph.py](file://backend/agent/graph.py)
 - [frontend/package.json](file://frontend/package.json)
 - [frontend/vite.config.js](file://frontend/vite.config.js)
 - [frontend/src/services/api.js](file://frontend/src/services/api.js)
 - [frontend/src/App.jsx](file://frontend/src/App.jsx)
-- [frontend/src/pages/Home.jsx](file://frontend/src/pages/Home.jsx)
-- [frontend/src/components/Navbar.jsx](file://frontend/src/components/Navbar.jsx)
 - [render.yaml](file://render.yaml)
 </cite>
 
@@ -20,241 +19,209 @@
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
 3. [Prerequisites](#prerequisites)
-4. [Local Development Setup](#local-development-setup)
-5. [Development Workflow](#development-workflow)
-6. [API Documentation Access](#api-documentation-access)
-7. [Environment Variables and Configuration](#environment-variables-and-configuration)
-8. [CORS and Proxy Configuration](#cors-and-proxy-configuration)
-9. [Running the Application Locally](#running-the-application-locally)
-10. [Troubleshooting Guide](#troubleshooting-guide)
-11. [Deployment Overview](#deployment-overview)
-12. [Conclusion](#conclusion)
+4. [Core Components](#core-components)
+5. [Architecture Overview](#architecture-overview)
+6. [Local Development Setup](#local-development-setup)
+7. [Accessing Services](#accessing-services)
+8. [Troubleshooting Guide](#troubleshooting-guide)
+9. [IDE-Based Development Workflows](#ide-based-development-workflows)
+10. [Conclusion](#conclusion)
 
 ## Introduction
-This guide helps you set up and run ishwarambare-app locally, a full-stack application featuring a FastAPI backend and a React + Vite frontend. It covers prerequisites, environment setup, dependency installation, configuration, and running both servers. You will also learn how to access the interactive API documentation and resolve common setup issues.
+This guide helps you set up ishwarambare-app for local development and become productive quickly. The project is a full-stack application built with FastAPI (Python) for the backend and React + Vite for the frontend. It includes a portfolio agent powered by LangGraph, real-time streaming via Server-Sent Events (SSE), and a simple SQLite-backed ORM layer.
 
 ## Project Structure
-The repository is organized into two primary directories:
-- backend: FastAPI application with routers for items and authentication, plus a development server entrypoint and dependency requirements.
-- frontend: React application bootstrapped with Vite, including routing, a service layer for API calls, and page components.
+The repository is organized into two primary areas:
+- backend/: FastAPI application with routers, models, agent, and Celery tasks
+- frontend/: React application with routing, components, pages, and API services
+- render.yaml: Deployment blueprint for Render
 
 ```mermaid
 graph TB
 subgraph "Backend (FastAPI)"
 BM["backend/main.py"]
-BR1["backend/routers/items.py"]
-BR2["backend/routers/auth.py"]
-BReq["backend/requirements.txt"]
+BR["backend/routers/*"]
+BD["backend/models/*"]
+BA["backend/agent/*"]
+BT["backend/tasks/*"]
 end
 subgraph "Frontend (React + Vite)"
-FPkg["frontend/package.json"]
-FConf["frontend/vite.config.js"]
-FA["frontend/src/App.jsx"]
-FH["frontend/src/pages/Home.jsx"]
-FN["frontend/src/components/Navbar.jsx"]
-FApi["frontend/src/services/api.js"]
+FP["frontend/package.json"]
+FV["frontend/vite.config.js"]
+FA["frontend/src/services/api.js"]
+FR["frontend/src/App.jsx"]
 end
-BM --> BR1
-BM --> BR2
-FA --> FH
-FA --> FN
-FH --> FApi
-FApi --> FConf
-BM --> BReq
-FConf --> FPkg
+RM["render.yaml"]
+FP --> FV
+FA --> BM
+FR --> FA
+BM --> BR
+BM --> BD
+BM --> BA
+RM --> BM
+RM --> FP
 ```
 
 **Diagram sources**
-- [backend/main.py:1-44](file://backend/main.py#L1-L44)
-- [backend/routers/items.py:1-72](file://backend/routers/items.py#L1-L72)
-- [backend/routers/auth.py:1-39](file://backend/routers/auth.py#L1-L39)
-- [backend/requirements.txt:1-20](file://backend/requirements.txt#L1-L20)
-- [frontend/package.json:1-24](file://frontend/package.json#L1-L24)
+- [backend/main.py:1-59](file://backend/main.py#L1-L59)
+- [frontend/package.json:1-27](file://frontend/package.json#L1-L27)
 - [frontend/vite.config.js:1-23](file://frontend/vite.config.js#L1-L23)
-- [frontend/src/App.jsx:1-19](file://frontend/src/App.jsx#L1-L19)
-- [frontend/src/pages/Home.jsx:1-63](file://frontend/src/pages/Home.jsx#L1-L63)
-- [frontend/src/components/Navbar.jsx:1-19](file://frontend/src/components/Navbar.jsx#L1-L19)
-- [frontend/src/services/api.js:1-29](file://frontend/src/services/api.js#L1-L29)
+- [frontend/src/services/api.js:1-35](file://frontend/src/services/api.js#L1-L35)
+- [frontend/src/App.jsx:1-21](file://frontend/src/App.jsx#L1-L21)
+- [render.yaml:1-48](file://render.yaml#L1-L48)
 
 **Section sources**
 - [README.md:5-25](file://README.md#L5-L25)
+- [README.md:29-75](file://README.md#L29-L75)
 
 ## Prerequisites
 - Python 3.14+ for the backend
 - Node.js 18+ for the frontend
+- Git for cloning and pushing to GitHub (for deployment)
+- Optional: Docker for containerized runs (not required)
 
-These versions are required to match the project’s runtime expectations and toolchain compatibility.
-
-**Section sources**
-- [README.md:31-33](file://README.md#L31-L33)
-
-## Local Development Setup
-Follow these steps to prepare your environment for local development.
-
-### Backend Setup
-1. Navigate to the backend directory.
-2. Create and activate a virtual environment appropriate for your OS.
-3. Install Python dependencies from the requirements file.
-4. Prepare environment variables by copying the example file and editing it.
-5. Start the FastAPI development server with hot reload on port 8000.
-
-Notes:
-- The backend uses environment variables for CORS origins and other settings.
-- The development server is configured to listen on port 8000.
+These versions ensure compatibility with the latest FastAPI, React, and related toolchains used in the project.
 
 **Section sources**
-- [README.md:35-56](file://README.md#L35-L56)
-- [backend/requirements.txt:1-20](file://backend/requirements.txt#L1-L20)
-- [backend/main.py:17-28](file://backend/main.py#L17-L28)
+- [README.md:31-34](file://README.md#L31-L34)
 
-### Frontend Setup
-1. Navigate to the frontend directory.
-2. Install JavaScript dependencies using the package manager.
-3. Prepare environment variables by copying the example file and editing it.
-4. Start the Vite development server.
+## Core Components
+- Backend API server: FastAPI app with CORS middleware, router registration, and startup table creation
+- Database layer: SQLAlchemy engine configured for SQLite by default; can be switched to PostgreSQL
+- Agent pipeline: LangGraph-based workflow orchestrating news fetching, price retrieval, risk calculation, and optional alerting
+- Frontend client: React SPA with routing, charting, and SSE support for live agent updates
 
-Notes:
-- The frontend proxies API requests to the backend during development.
-- The development server runs on port 5173.
+Key implementation highlights:
+- Backend entrypoint defines routers under /api/* and exposes health and root endpoints
+- Database initialization occurs on startup and supports SQLite or PostgreSQL via environment variable
+- Agent graph defines a deterministic pipeline with conditional branching and SSE-ready streaming
+- Frontend proxies API calls to the backend during development and reads base URL from environment variables
 
 **Section sources**
-- [README.md:58-74](file://README.md#L58-L74)
-- [frontend/package.json:1-24](file://frontend/package.json#L1-L24)
-- [frontend/vite.config.js:7-16](file://frontend/vite.config.js#L7-L16)
+- [backend/main.py:12-59](file://backend/main.py#L12-L59)
+- [backend/models/database.py:10-42](file://backend/models/database.py#L10-L42)
+- [backend/agent/graph.py:1-243](file://backend/agent/graph.py#L1-L243)
+- [frontend/src/services/api.js:1-35](file://frontend/src/services/api.js#L1-L35)
 
-## Development Workflow
-End-to-end workflow from environment setup to running the app locally:
+## Architecture Overview
+The system consists of a FastAPI backend serving REST endpoints and optional SSE streams, and a React frontend that consumes the API and displays portfolio analytics and agent insights.
 
 ```mermaid
-flowchart TD
-Start(["Start"]) --> BEnv["Backend: Create and activate virtual environment"]
-BEnv --> BInstall["Backend: Install dependencies from requirements.txt"]
-BInstall --> BEnvFile["Backend: Copy and edit .env"]
-BEnvFile --> BRun["Backend: Start Uvicorn dev server on port 8000"]
-Start --> FEnv["Frontend: Install dependencies"]
-FEnv --> FEnvFile["Frontend: Copy and edit .env.local"]
-FEnvFile --> FRun["Frontend: Start Vite dev server on port 5173"]
-BRun --> FProxy["Frontend: Vite proxy forwards /api to backend"]
-FProxy --> Ready(["App Ready"])
+graph TB
+FE["Frontend (React + Vite)"]
+API["Backend (FastAPI)"]
+DB["Database (SQLite by default)"]
+AG["Agent Pipeline (LangGraph)"]
+FE --> |HTTP requests| API
+API --> |ORM queries| DB
+API --> |Agent orchestration| AG
+AG --> |Optional alerts| API
+API --> |SSE streams| FE
 ```
 
 **Diagram sources**
-- [README.md:35-74](file://README.md#L35-L74)
-- [backend/main.py:10-14](file://backend/main.py#L10-L14)
-- [backend/main.py:17-28](file://backend/main.py#L17-L28)
-- [frontend/vite.config.js:7-16](file://frontend/vite.config.js#L7-L16)
+- [backend/main.py:38-44](file://backend/main.py#L38-L44)
+- [backend/models/database.py:15-42](file://backend/models/database.py#L15-L42)
+- [backend/agent/graph.py:162-204](file://backend/agent/graph.py#L162-L204)
+- [frontend/vite.config.js:7-17](file://frontend/vite.config.js#L7-L17)
 
-## API Documentation Access
-While the backend server is running, open the following URL in your browser to view the interactive API documentation:
-- http://localhost:8000/docs
+## Local Development Setup
+Follow these steps to run the backend and frontend locally.
 
-This route is provided by the FastAPI application and displays OpenAPI/Swagger documentation for all registered endpoints.
+### Backend (FastAPI)
+1. Navigate to the backend directory.
+2. Create and activate a Python virtual environment appropriate for your OS.
+3. Install Python dependencies from the requirements file.
+4. Duplicate the environment example file to create your .env and configure variables as needed.
+5. Start the FastAPI development server on port 8000.
 
-**Section sources**
-- [README.md:56-56](file://README.md#L56-L56)
-- [backend/main.py:10-14](file://backend/main.py#L10-L14)
-
-## Environment Variables and Configuration
-### Backend Environment Variables
-- ALLOWED_ORIGINS: Comma-separated list of origins permitted for CORS. Defaults to localhost and production domains.
-- SECRET_KEY: Used by the backend for signing tokens or secrets. Generate securely for production.
-- ENVIRONMENT: Indicates environment mode (e.g., production).
-
-Notes:
-- The backend loads environment variables at startup.
-- The CORS middleware reads ALLOWED_ORIGINS dynamically from the environment.
+After starting the backend, you can access the interactive API documentation at http://localhost:8000/docs.
 
 **Section sources**
-- [backend/main.py:17-20](file://backend/main.py#L17-L20)
-- [backend/main.py:22-28](file://backend/main.py#L22-L28)
-- [render.yaml:15-21](file://render.yaml#L15-L21)
+- [README.md:35-56](file://README.md#L35-L56)
+- [backend/main.py:19-30](file://backend/main.py#L19-L30)
 
-### Frontend Environment Variables
-- VITE_API_URL: Base URL for API calls during development. Defaults to the backend URL if unset.
+### Frontend (React + Vite)
+1. Navigate to the frontend directory.
+2. Install JavaScript dependencies using your package manager.
+3. Duplicate the environment example file to create your .env.local and set the API base URL if needed.
+4. Start the Vite development server.
 
-Notes:
-- The frontend service layer uses this variable to construct API base URLs.
-- During development, Vite proxies API calls to the backend automatically.
-
-**Section sources**
-- [frontend/src/services/api.js:3-6](file://frontend/src/services/api.js#L3-L6)
-- [frontend/vite.config.js:10-16](file://frontend/vite.config.js#L10-L16)
-- [render.yaml:40-42](file://render.yaml#L40-L42)
-
-## CORS and Proxy Configuration
-### Backend CORS
-- The backend enables CORS with configurable origins loaded from environment variables.
-- Origins include the frontend development origin and production domains by default.
+The frontend runs at http://localhost:5173 and proxies API calls under /api to the backend.
 
 **Section sources**
-- [backend/main.py:17-20](file://backend/main.py#L17-L20)
-- [backend/main.py:22-28](file://backend/main.py#L22-L28)
+- [README.md:58-74](file://README.md#L58-L74)
+- [frontend/vite.config.js:7-17](file://frontend/vite.config.js#L7-L17)
+- [frontend/src/services/api.js:3](file://frontend/src/services/api.js#L3)
 
-### Frontend Proxy
-- Vite is configured to proxy API requests prefixed with /api to the backend during development.
-- This avoids cross-origin issues while developing locally.
+## Accessing Services
+- Backend API docs: http://localhost:8000/docs
+- Frontend app: http://localhost:5173
+- API calls from the frontend are proxied to http://localhost:8000 during development
 
-**Section sources**
-- [frontend/vite.config.js:7-16](file://frontend/vite.config.js#L7-L16)
-
-## Running the Application Locally
-### Backend
-- Start the FastAPI development server with hot reload on port 8000.
-- Access the interactive API docs at http://localhost:8000/docs.
+The frontend’s routing and pages integrate with the backend’s API endpoints exposed under /api/*.
 
 **Section sources**
-- [README.md:52-56](file://README.md#L52-L56)
-- [backend/main.py:10-14](file://backend/main.py#L10-L14)
-
-### Frontend
-- Start the Vite development server on port 5173.
-- API calls are proxied to the backend automatically.
-
-**Section sources**
-- [README.md:69-74](file://README.md#L69-L74)
-- [frontend/vite.config.js:7-16](file://frontend/vite.config.js#L7-L16)
+- [README.md:56](file://README.md#L56)
+- [README.md:73-74](file://README.md#L73-L74)
+- [frontend/src/App.jsx:8-20](file://frontend/src/App.jsx#L8-L20)
 
 ## Troubleshooting Guide
-Common issues and resolutions:
+Common setup issues and resolutions:
 
 - Port conflicts
-  - Symptom: Port 8000 or 5173 already in use.
-  - Resolution: Stop the conflicting process or adjust ports in backend and/or Vite configuration.
+  - If port 8000 or 5173 is in use, adjust the ports in the backend and/or Vite configuration accordingly.
+  - Backend port is configurable in the development command.
+  - Vite port is defined in the frontend configuration.
 
-- CORS errors in the browser console
-  - Symptom: Preflight or blocked requests due to origin mismatch.
-  - Resolution: Ensure ALLOWED_ORIGINS includes the frontend origin (localhost:5173) and any production domains.
+- CORS and origin mismatches
+  - The backend allows all origins for SSE compatibility but respects the ALLOWED_ORIGINS environment variable.
+  - Ensure the frontend origin matches the allowed origins during development.
 
-- API calls failing in development
-  - Symptom: Network errors when fetching data.
-  - Resolution: Confirm the backend is running on port 8000 and Vite proxy is enabled. Verify VITE_API_URL is not overriding the proxy.
+- Database connectivity
+  - SQLite is used by default; no additional setup is required.
+  - To use PostgreSQL, set the DATABASE_URL environment variable to a PostgreSQL connection string.
 
-- Missing environment files
-  - Symptom: Runtime errors related to missing keys.
-  - Resolution: Copy the example environment files and fill in required values.
+- Environment variables
+  - Backend: create .env from the example and set ALLOWED_ORIGINS and SECRET_KEY as needed.
+  - Frontend: create .env.local from the example and set VITE_API_URL to the backend URL if different from the default.
 
-- Python virtual environment activation
-  - Symptom: Module not found or permission denied.
-  - Resolution: Create a virtual environment with Python 3.14+ and activate it before installing dependencies.
+- Proxy settings
+  - Vite proxies /api to the backend during development.
+  - If you encounter proxy issues, verify the proxy target and changeOrigin settings in the Vite configuration.
 
-**Section sources**
-- [README.md:31-33](file://README.md#L31-L33)
-- [README.md:49-50](file://README.md#L49-L50)
-- [README.md:66-67](file://README.md#L66-L67)
-- [backend/main.py:17-20](file://backend/main.py#L17-L20)
-- [frontend/vite.config.js:7-16](file://frontend/vite.config.js#L7-L16)
-- [frontend/src/services/api.js:3-6](file://frontend/src/services/api.js#L3-L6)
+- Authentication
+  - The demo login endpoint accepts a username and password pair.
+  - Replace the demo login with a proper JWT-based authentication system before production.
 
-## Deployment Overview
-The project is prepared for deployment on Render using a blueprint specification. The blueprint defines separate services for the backend and frontend, sets region and plans, and configures environment variables and health checks.
-
-Key deployment details:
-- Backend service: Python runtime, builds with pip install, starts with Uvicorn, health check at /health.
-- Frontend service: Static site build and publish, SPA fallback rewrite, and environment variable for API URL.
-- Custom domain setup is supported via Render’s dashboard and DNS configuration.
+- Agent pipeline
+  - The agent graph compiles on import and supports synchronous invocation and SSE-ready streaming.
+  - Ensure the agent tools are available and the agent endpoints are reachable via the backend.
 
 **Section sources**
-- [render.yaml:4-48](file://render.yaml#L4-L48)
+- [backend/main.py:19-30](file://backend/main.py#L19-L30)
+- [backend/models/database.py:15-18](file://backend/models/database.py#L15-L18)
+- [frontend/vite.config.js:9-16](file://frontend/vite.config.js#L9-L16)
+- [frontend/src/services/api.js:3](file://frontend/src/services/api.js#L3)
+- [backend/routers/auth.py:18-32](file://backend/routers/auth.py#L18-L32)
+- [backend/agent/graph.py:162-204](file://backend/agent/graph.py#L162-L204)
+
+## IDE-Based Development Workflows
+- Backend
+  - Use your IDE’s integrated terminal to navigate to the backend directory and run the development server.
+  - Set environment variables in your IDE’s run configuration or use a .env file loaded by your IDE.
+  - Enable hot reload and breakpoints for efficient debugging.
+
+- Frontend
+  - Use your IDE’s integrated terminal to navigate to the frontend directory and run the development server.
+  - Configure environment variables in .env.local or your IDE’s run configuration.
+  - Leverage the proxy settings so API calls route to the backend seamlessly.
+
+- Shared
+  - Keep both servers running concurrently.
+  - Use the backend’s interactive docs to test endpoints and the frontend to verify UI integrations.
+
+[No sources needed since this section provides general guidance]
 
 ## Conclusion
-You now have the essentials to develop and run ishwarambare-app locally. Follow the setup steps, configure environment variables, and use the development servers for both backend and frontend. Access the interactive API documentation at http://localhost:8000/docs, and refer to the troubleshooting section for common issues. When ready, deploy using the provided Render blueprint or manual environment variable configuration.
+You now have the essentials to run ishwarambare-app locally, understand the architecture, and troubleshoot common issues. Explore the backend routers and the agent pipeline to deepen your understanding, and extend the frontend pages and services to meet your feature requirements.
