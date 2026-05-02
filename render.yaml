@@ -1,0 +1,47 @@
+# render.yaml – Render Blueprint for ishwarambare.online
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  - type: web
+    name: ishwarambare-api
+    runtime: python
+    region: singapore          # closest to India
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: https://ishwarambare.online,https://www.ishwarambare.online
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true    # Render generates a random secure value
+
+  # ── React Frontend (Static Site) ─────────────────────────────────────────────
+  - type: web
+    name: ishwarambare-frontend
+    runtime: static
+    region: singapore
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html   # React SPA fallback
+    envVars:
+      - key: VITE_API_URL
+        value: https://ishwarambare-api.onrender.com
+
+# ── Custom Domain: Add in Render Dashboard ──────────────────────────────────
+# 1. Go to your frontend service → Settings → Custom Domains
+# 2. Add:  ishwarambare.online  and  www.ishwarambare.online
+# 3. Set DNS A record to Render's IP or CNAME to <your-service>.onrender.com
