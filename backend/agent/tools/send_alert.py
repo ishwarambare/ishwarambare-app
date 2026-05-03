@@ -19,9 +19,8 @@ from typing import Any
 from langchain_core.tools import tool
 
 # ── SendGrid ──────────────────────────────────────────────────────────────────
-SENDGRID_API_KEY  = os.getenv("SENDGRID_API_KEY", "")
-SENDGRID_FROM     = os.getenv("SENDGRID_FROM_EMAIL", "alerts@ishwarambare.online")
-
+# NOTE: credentials are read lazily inside each function (not at import time)
+# so that load_dotenv() can be called BEFORE or AFTER this module is imported.
 try:
     from sendgrid import SendGridAPIClient
     from sendgrid.helpers.mail import Mail
@@ -30,10 +29,6 @@ except ImportError:
     _HAS_SENDGRID = False
 
 # ── Twilio ────────────────────────────────────────────────────────────────────
-TWILIO_SID    = os.getenv("TWILIO_ACCOUNT_SID", "")
-TWILIO_TOKEN  = os.getenv("TWILIO_AUTH_TOKEN", "")
-TWILIO_FROM   = os.getenv("TWILIO_FROM_NUMBER", "")
-
 try:
     from twilio.rest import Client as TwilioClient
     _HAS_TWILIO = True
@@ -126,16 +121,19 @@ def _send_email_sendgrid(
     to_email: str, subject: str, html_body: str
 ) -> tuple[bool, str]:
     """Send via SendGrid. Returns (success, message)."""
-    if not _HAS_SENDGRID or not SENDGRID_API_KEY:
+    # Read credentials lazily so load_dotenv() order doesn't matter
+    api_key = os.getenv("SENDGRID_API_KEY", "")
+    from_email = os.getenv("SENDGRID_FROM_EMAIL", "alerts@ishwarambare.online")
+    if not _HAS_SENDGRID or not api_key:
         return False, "SendGrid not configured (no API key or package)"
     try:
         message = Mail(
-            from_email=SENDGRID_FROM,
+            from_email=from_email,
             to_emails=to_email,
             subject=subject,
             html_content=html_body,
         )
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        sg = SendGridAPIClient(api_key)
         response = sg.send(message)
         return True, f"Email sent (HTTP {response.status_code})"
     except Exception as exc:
@@ -144,11 +142,15 @@ def _send_email_sendgrid(
 
 def _send_sms_twilio(to_number: str, body: str) -> tuple[bool, str]:
     """Send via Twilio. Returns (success, message)."""
-    if not _HAS_TWILIO or not all([TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM]):
+    # Read credentials lazily so load_dotenv() order doesn't matter
+    sid = os.getenv("TWILIO_ACCOUNT_SID", "")
+    token = os.getenv("TWILIO_AUTH_TOKEN", "")
+    from_number = os.getenv("TWILIO_FROM_NUMBER", "")
+    if not _HAS_TWILIO or not all([sid, token, from_number]):
         return False, "Twilio not configured (missing credentials or package)"
     try:
-        client = TwilioClient(TWILIO_SID, TWILIO_TOKEN)
-        msg = client.messages.create(body=body, from_=TWILIO_FROM, to=to_number)
+        client = TwilioClient(sid, token)
+        msg = client.messages.create(body=body, from_=from_number, to=to_number)
         return True, f"SMS sent (SID: {msg.sid})"
     except Exception as exc:
         return False, f"Twilio error: {exc}"
