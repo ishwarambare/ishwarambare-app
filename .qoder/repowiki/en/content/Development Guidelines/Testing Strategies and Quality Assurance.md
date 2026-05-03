@@ -4,6 +4,7 @@
 **Referenced Files in This Document**
 - [backend/main.py](file://backend/main.py)
 - [backend/routers/agent.py](file://backend/routers/agent.py)
+- [backend/routers/alerts.py](file://backend/routers/alerts.py)
 - [backend/models/database.py](file://backend/models/database.py)
 - [backend/models/portfolio.py](file://backend/models/portfolio.py)
 - [backend/models/alert.py](file://backend/models/alert.py)
@@ -12,12 +13,25 @@
 - [backend/agent/tools/fetch_news.py](file://backend/agent/tools/fetch_news.py)
 - [backend/agent/tools/get_prices.py](file://backend/agent/tools/get_prices.py)
 - [backend/agent/tools/calc_risk.py](file://backend/agent/tools/calc_risk.py)
+- [backend/agent/tools/send_alert.py](file://backend/agent/tools/send_alert.py)
+- [backend/test_alerts.py](file://backend/test_alerts.py)
+- [backend/test_pipeline.py](file://backend/test_pipeline.py)
 - [frontend/src/services/api.js](file://frontend/src/services/api.js)
 - [frontend/src/services/sse.js](file://frontend/src/services/sse.js)
 - [frontend/src/components/AgentFeed.jsx](file://frontend/src/components/AgentFeed.jsx)
+- [frontend/src/components/AlertCard.jsx](file://frontend/src/components/AlertCard.jsx)
+- [frontend/src/pages/AlertHistory.jsx](file://frontend/src/pages/AlertHistory.jsx)
 - [frontend/src/pages/LiveAgent.jsx](file://frontend/src/pages/LiveAgent.jsx)
 - [frontend/package.json](file://frontend/package.json)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive alert testing utilities documentation with dedicated test files
+- Enhanced testing strategies for the alert management system including SendGrid and Twilio integration
+- Integrated alert pipeline testing with end-to-end verification of email and SMS delivery
+- Added alert history and monitoring capabilities with frontend integration
+- Expanded testing framework to cover notification channels and delivery mechanisms
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -34,46 +48,61 @@
 ## Introduction
 This document defines a comprehensive testing strategy for the ishwarambare-app project. It covers backend testing (unit and integration for FastAPI endpoints, database operations, and the LangGraph agent workflow), frontend testing (React component testing, API integration tests, and UI behavior), and operational testing (real-time features via Server-Sent Events, state management, and asynchronous operations). It also outlines best practices for coverage, CI/CD pipelines, debugging, performance, and load testing tailored for financial applications.
 
+**Updated** Added comprehensive testing framework documentation for alert testing utilities and enhanced testing strategies for the alert management system, including dedicated test files for SendGrid and Twilio integration.
+
 ## Project Structure
 The project follows a clear separation of concerns:
-- Backend: FastAPI application with routers, SQLAlchemy models, LangGraph agent, and tools.
-- Frontend: React SPA with Axios-based API service, EventSource-based SSE service, and UI components.
+- Backend: FastAPI application with routers, SQLAlchemy models, LangGraph agent, tools, and comprehensive alert testing utilities.
+- Frontend: React SPA with Axios-based API service, EventSource-based SSE service, and UI components for alert history and monitoring.
 
 ```mermaid
 graph TB
 subgraph "Backend"
 A["FastAPI app<br/>backend/main.py"]
 B["Routers<br/>backend/routers/agent.py"]
-C["Models<br/>backend/models/*.py"]
-D["Agent Graph<br/>backend/agent/graph.py"]
-E["Tools<br/>backend/agent/tools/*.py"]
+C["Alert Routers<br/>backend/routers/alerts.py"]
+D["Models<br/>backend/models/*.py"]
+E["Agent Graph<br/>backend/agent/graph.py"]
+F["Tools<br/>backend/agent/tools/*.py"]
+G["Alert Testing<br/>backend/test_alerts.py"]
+H["Pipeline Testing<br/>backend/test_pipeline.py"]
 end
 subgraph "Frontend"
-F["Axios API Service<br/>frontend/src/services/api.js"]
-G["SSE Service<br/>frontend/src/services/sse.js"]
-H["Components<br/>frontend/src/components/*.jsx"]
-I["Pages<br/>frontend/src/pages/*.jsx"]
+I["Axios API Service<br/>frontend/src/services/api.js"]
+J["SSE Service<br/>frontend/src/services/sse.js"]
+K["Components<br/>frontend/src/components/*.jsx"]
+L["Pages<br/>frontend/src/pages/*.jsx"]
 end
 A --> B
 B --> C
 B --> D
-D --> E
-H --> G
-I --> F
-F --> B
+B --> E
+E --> F
+F --> G
+F --> H
+K --> J
+L --> I
+I --> B
+I --> C
 ```
 
 **Diagram sources**
 - [backend/main.py:12-59](file://backend/main.py#L12-L59)
 - [backend/routers/agent.py:1-243](file://backend/routers/agent.py#L1-L243)
+- [backend/routers/alerts.py:1-84](file://backend/routers/alerts.py#L1-L84)
 - [backend/models/database.py:1-42](file://backend/models/database.py#L1-L42)
 - [backend/agent/graph.py:1-243](file://backend/agent/graph.py#L1-L243)
 - [backend/agent/tools/fetch_news.py:1-164](file://backend/agent/tools/fetch_news.py#L1-L164)
 - [backend/agent/tools/get_prices.py:1-139](file://backend/agent/tools/get_prices.py#L1-L139)
 - [backend/agent/tools/calc_risk.py:1-255](file://backend/agent/tools/calc_risk.py#L1-L255)
+- [backend/agent/tools/send_alert.py:1-233](file://backend/agent/tools/send_alert.py#L1-L233)
+- [backend/test_alerts.py:1-112](file://backend/test_alerts.py#L1-L112)
+- [backend/test_pipeline.py:1-88](file://backend/test_pipeline.py#L1-L88)
 - [frontend/src/services/api.js:1-35](file://frontend/src/services/api.js#L1-L35)
 - [frontend/src/services/sse.js:1-63](file://frontend/src/services/sse.js#L1-L63)
 - [frontend/src/components/AgentFeed.jsx:1-175](file://frontend/src/components/AgentFeed.jsx#L1-L175)
+- [frontend/src/components/AlertCard.jsx:1-89](file://frontend/src/components/AlertCard.jsx#L1-L89)
+- [frontend/src/pages/AlertHistory.jsx:1-163](file://frontend/src/pages/AlertHistory.jsx#L1-L163)
 - [frontend/src/pages/LiveAgent.jsx:1-95](file://frontend/src/pages/LiveAgent.jsx#L1-L95)
 
 **Section sources**
@@ -83,14 +112,19 @@ F --> B
 ## Core Components
 - FastAPI application with CORS middleware, startup table creation, and router registration.
 - Agent router exposing SSE streaming and synchronous run endpoints, plus a status endpoint.
-- SQLAlchemy models for Portfolio and Alert persistence.
+- Alert router providing read-only endpoints for alert history, filtering, and statistics.
+- SQLAlchemy models for Portfolio and Alert persistence with comprehensive alert metadata.
 - LangGraph StateGraph with typed state and four nodes: fetch_news, get_prices, calc_risk, conditional routing to send_alert or log_and_end.
 - Tools implementing financial computations and data fetching with fallbacks for offline/demo scenarios.
-- Frontend services for API and SSE, and React components for live agent feed and risk visualization.
+- Dedicated alert testing utilities for SendGrid email and Twilio SMS integration verification.
+- Frontend services for API and SSE, and React components for live agent feed, alert history, and risk visualization.
+
+**Updated** Enhanced with comprehensive alert testing utilities and alert management system with dedicated testing infrastructure.
 
 **Section sources**
 - [backend/main.py:12-59](file://backend/main.py#L12-L59)
 - [backend/routers/agent.py:1-243](file://backend/routers/agent.py#L1-L243)
+- [backend/routers/alerts.py:1-84](file://backend/routers/alerts.py#L1-L84)
 - [backend/models/database.py:1-42](file://backend/models/database.py#L1-L42)
 - [backend/models/portfolio.py:1-63](file://backend/models/portfolio.py#L1-L63)
 - [backend/models/alert.py:1-77](file://backend/models/alert.py#L1-L77)
@@ -99,9 +133,14 @@ F --> B
 - [backend/agent/tools/fetch_news.py:1-164](file://backend/agent/tools/fetch_news.py#L1-L164)
 - [backend/agent/tools/get_prices.py:1-139](file://backend/agent/tools/get_prices.py#L1-L139)
 - [backend/agent/tools/calc_risk.py:1-255](file://backend/agent/tools/calc_risk.py#L1-L255)
+- [backend/agent/tools/send_alert.py:1-233](file://backend/agent/tools/send_alert.py#L1-L233)
+- [backend/test_alerts.py:1-112](file://backend/test_alerts.py#L1-L112)
+- [backend/test_pipeline.py:1-88](file://backend/test_pipeline.py#L1-L88)
 - [frontend/src/services/api.js:1-35](file://frontend/src/services/api.js#L1-L35)
 - [frontend/src/services/sse.js:1-63](file://frontend/src/services/sse.js#L1-L63)
 - [frontend/src/components/AgentFeed.jsx:1-175](file://frontend/src/components/AgentFeed.jsx#L1-L175)
+- [frontend/src/components/AlertCard.jsx:1-89](file://frontend/src/components/AlertCard.jsx#L1-L89)
+- [frontend/src/pages/AlertHistory.jsx:1-163](file://frontend/src/pages/AlertHistory.jsx#L1-L163)
 - [frontend/src/pages/LiveAgent.jsx:1-95](file://frontend/src/pages/LiveAgent.jsx#L1-L95)
 
 ## Architecture Overview
@@ -109,6 +148,7 @@ The testing strategy aligns with the layered architecture:
 - Backend tests validate FastAPI endpoints, database persistence, and agent workflow correctness.
 - Frontend tests validate component rendering, API interactions, and SSE-driven UI updates.
 - Financial-specific validations ensure numeric stability, thresholds, and risk scoring accuracy.
+- Alert testing utilities provide comprehensive verification of notification delivery channels.
 
 ```mermaid
 sequenceDiagram
@@ -117,12 +157,18 @@ participant API as "Axios API Service"
 participant SSE as "EventSource"
 participant Router as "Agent Router"
 participant Graph as "LangGraph Agent"
+participant AlertTool as "Alert Tool"
+participant SendGrid as "SendGrid API"
+participant Twilio as "Twilio API"
 participant DB as "SQLAlchemy Models"
 FE->>API : "POST /api/agent/run/{id}"
 API-->>Router : "invoke agent"
 Router->>Graph : "ainvoke(initial_state)"
+Graph->>AlertTool : "send_alert()"
+AlertTool->>SendGrid : "send email (optional)"
+AlertTool->>Twilio : "send SMS (HIGH risk)"
+AlertTool->>DB : "persist Alert"
 Graph-->>Router : "final state"
-Router->>DB : "persist Alert"
 Router-->>FE : "JSON summary"
 FE->>SSE : "GET /api/agent/stream/{id}"
 SSE-->>FE : "SSE events (start/step/risk/alert/done/error)"
@@ -131,8 +177,9 @@ SSE-->>FE : "SSE events (start/step/risk/alert/done/error)"
 **Diagram sources**
 - [backend/routers/agent.py:184-232](file://backend/routers/agent.py#L184-L232)
 - [backend/agent/graph.py:162-203](file://backend/agent/graph.py#L162-L203)
+- [backend/agent/tools/send_alert.py:159-233](file://backend/agent/tools/send_alert.py#L159-L233)
 - [backend/models/alert.py:14-77](file://backend/models/alert.py#L14-L77)
-- [frontend/src/services/api.js:20-24](file://frontend/src/services/api.js#L20-L24)
+- [frontend/src/services/api.js:20-32](file://frontend/src/services/api.js#L20-L32)
 - [frontend/src/services/sse.js:21-62](file://frontend/src/services/sse.js#L21-L62)
 
 ## Detailed Component Analysis
@@ -144,7 +191,7 @@ SSE-->>FE : "SSE events (start/step/risk/alert/done/error)"
   - Positive paths: valid portfolio ID, successful agent run, SSE stream emits expected event types.
   - Negative paths: invalid portfolio ID raises 404, SSE disconnect handled gracefully, DB executor errors return appropriate SSE error events.
 - Testing frameworks:
-  - Use FastAPI’s TestClient for HTTP-level tests.
+  - Use FastAPI's TestClient for HTTP-level tests.
   - Use pytest for fixtures and parametrized tests.
 - Mocking strategies:
   - Patch database session and SQLAlchemy engine to avoid external dependencies.
@@ -264,55 +311,112 @@ G --> H["SSE Stream Final State"]
 - [backend/agent/tools/get_prices.py:60-138](file://backend/agent/tools/get_prices.py#L60-L138)
 - [backend/agent/tools/fetch_news.py:98-164](file://backend/agent/tools/fetch_news.py#L98-L164)
 
+#### Alert Testing Utilities and Pipeline Verification
+- Test coverage targets:
+  - SendGrid email delivery verification with raw SDK testing.
+  - Twilio SMS delivery verification with credential validation.
+  - End-to-end alert pipeline testing from agent to notification channels.
+  - Mock mode functionality when credentials are missing.
+- Testing frameworks:
+  - Dedicated test scripts for SendGrid and Twilio integration.
+  - Environment variable-based testing with .env configuration.
+  - Comprehensive error handling and logging for delivery failures.
+- Validation:
+  - Verify API key authentication and permission scopes.
+  - Test both production and mock delivery modes.
+  - Validate HTML email templates and SMS message formatting.
+
+**Updated** Added comprehensive alert testing utilities with dedicated test files for SendGrid and Twilio integration verification.
+
+```mermaid
+flowchart TD
+A["Alert Testing Utilities"] --> B["SendGrid Raw Test"]
+B --> C["Email Template Validation"]
+C --> D["Credential Authentication"]
+D --> E["Delivery Success/Failure Logging"]
+A --> F["Twilio SMS Test"]
+F --> G["Phone Number Validation"]
+G --> H["Message Formatting"]
+H --> I["SMS Delivery Verification"]
+A --> J["Pipeline Test"]
+J --> K["Full End-to-End Flow"]
+K --> L["Agent → Alert Tool → External APIs"]
+L --> M["Database Persistence"]
+```
+
+**Diagram sources**
+- [backend/test_alerts.py:22-60](file://backend/test_alerts.py#L22-L60)
+- [backend/test_alerts.py:62-91](file://backend/test_alerts.py#L62-L91)
+- [backend/test_pipeline.py:31-85](file://backend/test_pipeline.py#L31-L85)
+
+**Section sources**
+- [backend/test_alerts.py:1-112](file://backend/test_alerts.py#L1-L112)
+- [backend/test_pipeline.py:1-88](file://backend/test_pipeline.py#L1-L88)
+
 ### Frontend Testing Strategy
 
 #### Component Testing with React Testing Library
 - Test coverage targets:
   - AgentFeed renders messages, applies classification, auto-scrolls, and handles start/stop/reset.
   - LiveAgent page selects portfolio, passes props to AgentFeed and RiskGauge, and displays interview points.
+  - AlertCard displays risk levels, metrics, and delivery status with proper styling.
+  - AlertHistory page loads alerts, filters by risk level, and expands reasoning logs.
 - Testing frameworks:
   - React Testing Library with Jest or Vitest.
   - Mock EventSource to simulate SSE events.
 - Mocking strategies:
   - Stub connectAgentStream to inject handlers and emit controlled events.
   - Mock axios to intercept API calls and return predefined responses.
+  - Mock alert API endpoints to test different alert states and error conditions.
 
 ```mermaid
 sequenceDiagram
 participant RTL as "RTL Test"
 participant AF as "AgentFeed"
+participant AC as "AlertCard"
+participant AH as "AlertHistory"
 participant SSE as "Mock EventSource"
 participant API as "Mock Axios"
 RTL->>AF : "render with portfolioId"
 AF->>SSE : "connectAgentStream(portfolioId)"
 SSE-->>AF : "onmessage : {type : start/step/risk/alert/done/error}"
 AF-->>RTL : "assert DOM updates and state transitions"
-RTL->>API : "intercept /api/agent/run"
-API-->>RTL : "return JSON summary"
+RTL->>AC : "render with alert data"
+AC-->>RTL : "assert risk level styling and metrics"
+RTL->>AH : "render with alerts data"
+AH->>API : "mock alertsApi.list()"
+API-->>AH : "return alert list"
+AH-->>RTL : "assert filtering and expansion"
 ```
 
 **Diagram sources**
 - [frontend/src/components/AgentFeed.jsx:28-96](file://frontend/src/components/AgentFeed.jsx#L28-L96)
+- [frontend/src/components/AlertCard.jsx:10-71](file://frontend/src/components/AlertCard.jsx#L10-L71)
+- [frontend/src/pages/AlertHistory.jsx:19-32](file://frontend/src/pages/AlertHistory.jsx#L19-L32)
 - [frontend/src/services/sse.js:21-62](file://frontend/src/services/sse.js#L21-L62)
-- [frontend/src/services/api.js:20-24](file://frontend/src/services/api.js#L20-L24)
+- [frontend/src/services/api.js:26-32](file://frontend/src/services/api.js#L26-L32)
 
 **Section sources**
 - [frontend/src/components/AgentFeed.jsx:28-96](file://frontend/src/components/AgentFeed.jsx#L28-L96)
+- [frontend/src/components/AlertCard.jsx:10-71](file://frontend/src/components/AlertCard.jsx#L10-L71)
+- [frontend/src/pages/AlertHistory.jsx:12-163](file://frontend/src/pages/AlertHistory.jsx#L12-L163)
 - [frontend/src/pages/LiveAgent.jsx:15-94](file://frontend/src/pages/LiveAgent.jsx#L15-L94)
 - [frontend/src/services/sse.js:21-62](file://frontend/src/services/sse.js#L21-L62)
-- [frontend/src/services/api.js:20-24](file://frontend/src/services/api.js#L20-L24)
+- [frontend/src/services/api.js:26-32](file://frontend/src/services/api.js#L26-L32)
 
 #### Integration Testing for API Interactions
 - Test coverage targets:
   - Portfolio list/get/create/update/delete endpoints.
   - Agent run and status endpoints.
   - Alerts list, detail, stats, and portfolio-scoped queries.
+  - Alert filtering by risk level and pagination support.
 - Testing frameworks:
   - Vitest with React Testing Library for component integration.
   - Use a test backend (or FastAPI TestClient) to validate API responses.
 - Validation:
   - Assert correct request payloads and response shapes.
   - Simulate network failures and timeouts.
+  - Test alert statistics calculation and aggregation.
 
 **Section sources**
 - [frontend/src/services/api.js:12-34](file://frontend/src/services/api.js#L12-L34)
@@ -324,11 +428,15 @@ API-->>RTL : "return JSON summary"
 - State management testing:
   - Verify that AgentFeed maintains internal state (lines, running, status, stepCount) and resets correctly.
   - Validate prop propagation from LiveAgent to child components.
+  - Test AlertHistory state management for filtering, expansion, and loading states.
 - Asynchronous operation validation:
   - Assert that UI reflects loading, success, and error states after async operations.
+  - Validate alert card styling based on risk level and delivery status.
 
 **Section sources**
 - [frontend/src/components/AgentFeed.jsx:28-96](file://frontend/src/components/AgentFeed.jsx#L28-L96)
+- [frontend/src/components/AlertCard.jsx:10-71](file://frontend/src/components/AlertCard.jsx#L10-L71)
+- [frontend/src/pages/AlertHistory.jsx:12-163](file://frontend/src/pages/AlertHistory.jsx#L12-L163)
 - [frontend/src/pages/LiveAgent.jsx:15-94](file://frontend/src/pages/LiveAgent.jsx#L15-L94)
 
 ### Testing Best Practices for Financial Applications
@@ -337,6 +445,10 @@ API-->>RTL : "return JSON summary"
 - Error propagation: ensure errors from external APIs or tools are captured and surfaced to users.
 - Data integrity: confirm JSON serialization/deserialization for complex fields (reasoning logs, tickers).
 - Security and CORS: validate that SSE endpoints work with CORS configuration and that sensitive data is not exposed.
+- Notification reliability: verify SendGrid and Twilio credentials, rate limits, and delivery confirmation.
+- Alert history management: ensure comprehensive audit trail with filtering, searching, and export capabilities.
+
+**Updated** Enhanced with notification reliability testing and alert history management best practices.
 
 [No sources needed since this section provides general guidance]
 
@@ -345,43 +457,57 @@ Backend and frontend components interact through well-defined contracts:
 - Backend exposes REST endpoints and SSE streams.
 - Frontend consumes Axios for REST and EventSource for SSE.
 - Agent workflow depends on typed state and deterministic tool outputs.
+- Alert system integrates with external notification services via dedicated testing utilities.
 
 ```mermaid
 graph LR
 FE["Frontend Services/API"] --> AX["Axios"]
 FE --> ES["EventSource"]
 AX --> RT["Agent Router"]
+AX --> AR["Alert Router"]
 ES --> RT
 RT --> SG["LangGraph StateGraph"]
 SG --> TL["Tools"]
+TL --> AT["Alert Tool"]
+AT --> SG["SendGrid/Twilio"]
 RT --> DB["SQLAlchemy Models"]
+AR --> DB
 ```
 
 **Diagram sources**
 - [frontend/src/services/api.js:1-35](file://frontend/src/services/api.js#L1-L35)
 - [frontend/src/services/sse.js:1-63](file://frontend/src/services/sse.js#L1-L63)
 - [backend/routers/agent.py:1-243](file://backend/routers/agent.py#L1-L243)
+- [backend/routers/alerts.py:1-84](file://backend/routers/alerts.py#L1-L84)
 - [backend/agent/graph.py:1-243](file://backend/agent/graph.py#L1-L243)
+- [backend/agent/tools/send_alert.py:1-233](file://backend/agent/tools/send_alert.py#L1-L233)
 - [backend/models/alert.py:1-77](file://backend/models/alert.py#L1-L77)
 
 **Section sources**
 - [frontend/src/services/api.js:1-35](file://frontend/src/services/api.js#L1-L35)
 - [frontend/src/services/sse.js:1-63](file://frontend/src/services/sse.js#L1-L63)
 - [backend/routers/agent.py:1-243](file://backend/routers/agent.py#L1-L243)
+- [backend/routers/alerts.py:1-84](file://backend/routers/alerts.py#L1-L84)
 - [backend/agent/graph.py:1-243](file://backend/agent/graph.py#L1-L243)
+- [backend/agent/tools/send_alert.py:1-233](file://backend/agent/tools/send_alert.py#L1-L233)
 - [backend/models/alert.py:1-77](file://backend/models/alert.py#L1-L77)
 
 ## Performance Considerations
 - Backend:
   - Measure endpoint latency and throughput; mock expensive tools to isolate performance characteristics.
   - Validate SSE streaming performance under concurrent connections.
+  - Monitor alert delivery performance and external API response times.
 - Frontend:
   - Profile rendering performance of AgentFeed with large log histories.
   - Optimize re-renders by memoizing derived data and event handlers.
+  - Test alert history page performance with large datasets and filtering.
 - Financial computations:
   - Benchmark portfolio return calculations and risk metrics; cache results where safe.
 - Database:
   - Monitor query performance and connection pooling; use connection args suitable for SQLite threading.
+  - Optimize alert history queries with proper indexing on risk_level and created_at fields.
+
+**Updated** Added performance considerations for alert delivery and alert history management.
 
 [No sources needed since this section provides general guidance]
 
@@ -394,6 +520,15 @@ RT --> DB["SQLAlchemy Models"]
   - Ensure table creation runs on startup; confirm session lifecycle and proper closing.
 - Tool failures:
   - Confirm fallback behavior for yfinance and NewsAPI; validate mock data generation.
+- Alert delivery issues:
+  - Verify SendGrid API key permissions and domain authentication.
+  - Check Twilio account credentials and phone number formatting.
+  - Test alert pipeline end-to-end with dedicated test utilities.
+- Alert history problems:
+  - Validate alert filtering by risk level and pagination.
+  - Check alert statistics calculation and caching.
+
+**Updated** Enhanced troubleshooting guide with alert delivery and alert history specific issues.
 
 **Section sources**
 - [frontend/src/services/sse.js:21-62](file://frontend/src/services/sse.js#L21-L62)
@@ -401,13 +536,18 @@ RT --> DB["SQLAlchemy Models"]
 - [backend/models/database.py:38-42](file://backend/models/database.py#L38-L42)
 - [backend/agent/tools/get_prices.py:60-138](file://backend/agent/tools/get_prices.py#L60-L138)
 - [backend/agent/tools/fetch_news.py:98-164](file://backend/agent/tools/fetch_news.py#L98-L164)
+- [backend/test_alerts.py:22-91](file://backend/test_alerts.py#L22-L91)
+- [backend/test_pipeline.py:18-88](file://backend/test_pipeline.py#L18-L88)
 
 ## Conclusion
 A robust testing strategy for ishwarambare-app requires coordinated backend and frontend efforts:
 - Backend tests validate endpoints, database persistence, and agent workflow correctness with targeted mocking.
 - Frontend tests ensure reliable UI behavior for real-time streaming and API interactions.
 - Financial-specific validations protect numeric accuracy and threshold logic.
+- Alert testing utilities provide comprehensive verification of notification delivery channels.
 - CI/CD pipelines should enforce coverage, run backend and frontend suites, and include performance checks.
+
+**Updated** Enhanced conclusion to include comprehensive alert testing utilities and notification channel verification.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
@@ -418,9 +558,13 @@ A robust testing strategy for ishwarambare-app requires coordinated backend and 
   - Unit tests: > 85%
   - Integration tests: > 80%
   - Agent workflow tests: > 90%
+  - Alert testing utilities: > 95% (dedicated test files)
 - Frontend:
   - Component tests: > 80%
   - Integration tests: > 75%
+  - Alert history tests: > 85% (filtering, expansion, loading states)
+
+**Updated** Added specific coverage requirements for alert testing utilities and alert history components.
 
 [No sources needed since this section provides general guidance]
 
@@ -428,20 +572,41 @@ A robust testing strategy for ishwarambare-app requires coordinated backend and 
 - Backend:
   - Run FastAPI tests with pytest; collect coverage; fail on coverage thresholds.
   - Use tox or GitHub Actions to test multiple Python versions.
+  - Execute dedicated alert testing utilities in CI with environment variable configuration.
 - Frontend:
   - Run React tests with Vitest; enforce linting and formatting.
   - Build and preview checks for regressions.
+  - Test alert history page with mocked API responses.
 - Shared:
   - Parallelize backend and frontend jobs; cache dependencies; upload coverage artifacts.
+  - Configure environment variables for alert testing in CI/CD pipelines.
+
+**Updated** Enhanced CI/CD guidance to include alert testing utilities and environment variable configuration.
 
 [No sources needed since this section provides general guidance]
 
 ### Debugging Techniques
 - Backend:
   - Enable FastAPI debug mode; use structured logging; instrument tool invocations.
+  - Use dedicated alert testing utilities to debug notification delivery issues.
+  - Validate environment variables and credential configuration.
 - Frontend:
   - Use React DevTools; log SSE events; mock network requests for isolation.
+  - Test alert history filtering and expansion logic.
 - Financial:
   - Validate intermediate values (daily returns, sentiment, ratios) to localize issues.
+  - Debug alert pipeline from agent execution to notification delivery.
+
+**Updated** Added debugging techniques specific to alert testing utilities and notification delivery.
 
 [No sources needed since this section provides general guidance]
+
+### Alert Testing Utilities Reference
+- SendGrid Raw Test: Validates API key authentication and email delivery functionality.
+- Twilio SMS Test: Verifies phone number formatting and SMS delivery capability.
+- Pipeline Test: End-to-end verification of full alert delivery pipeline.
+- Mock Mode Testing: Ensures proper fallback behavior when credentials are missing.
+
+**Section sources**
+- [backend/test_alerts.py:22-91](file://backend/test_alerts.py#L22-L91)
+- [backend/test_pipeline.py:18-88](file://backend/test_pipeline.py#L18-L88)
