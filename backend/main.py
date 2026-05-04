@@ -5,6 +5,7 @@ import os
 
 from routers import items, auth
 from routers import portfolio, agent, alerts
+from routers import articles
 from models.database import create_tables
 
 load_dotenv()
@@ -41,6 +42,7 @@ app.include_router(auth.router,      prefix="/api/auth",      tags=["Auth"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Portfolio"])
 app.include_router(agent.router,     prefix="/api/agent",     tags=["Agent"])
 app.include_router(alerts.router,    prefix="/api/alerts",    tags=["Alerts"])
+app.include_router(articles.router,  prefix="/api/articles",  tags=["Articles"])
 
 
 # ── Root & health ─────────────────────────────────────────────────────────────

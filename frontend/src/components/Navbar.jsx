@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, Briefcase, Bell, Activity } from 'lucide-react'
+import { BarChart3, Briefcase, Bell, Activity, BookOpen } from 'lucide-react'
 
 export default function Navbar() {
   return (
@@ -42,6 +42,14 @@ export default function Navbar() {
           >
             <Activity size={15} />
             Live Agent
+          </NavLink>
+
+          <NavLink
+            to="/articles"
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <BookOpen size={15} />
+            Articles
           </NavLink>
         </div>
       </div>

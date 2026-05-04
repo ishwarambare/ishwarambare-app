@@ -37,5 +37,5 @@ def get_db():
 
 def create_tables():
     """Create all tables (called on app startup)."""
-    from models import portfolio, alert  # noqa: F401 — registers models
+    from models import portfolio, alert, article  # noqa: F401 — registers models
     Base.metadata.create_all(bind=engine)

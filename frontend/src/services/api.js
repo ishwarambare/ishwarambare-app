@@ -31,4 +31,14 @@ export const alertsApi = {
   forPortfolio: (id) => api.get(`/api/alerts/portfolio/${id}`),
 }
 
+// ── Articles ──────────────────────────────────────────────────────────────────
+export const articlesApi = {
+  list:    (params) => api.get('/api/articles', { params }),
+  get:     (slug)   => api.get(`/api/articles/${slug}`),
+  create:  (data)   => api.post('/api/articles', data),
+  update:  (id, data) => api.put(`/api/articles/${id}`, data),
+  remove:  (id)     => api.delete(`/api/articles/${id}`),
+  publish: (id)     => api.post(`/api/articles/${id}/publish`),
+}
+
 export default api
