@@ -55,3 +55,4 @@ class AgentState(TypedDict):
     # ── Audit trail (streamed to SSE) ──────────────────────────
     reasoning_steps: list[str]
     errors: list[str]
+
