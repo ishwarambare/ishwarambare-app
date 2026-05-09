@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, Clock, Calendar, User, Tag,
+  ArrowLeft, Clock, Calendar, Tag,
   Edit, Trash2, Eye, EyeOff
 } from 'lucide-react'
 import { articlesApi } from '../services/api'
@@ -165,12 +163,11 @@ export default function ArticleDetail() {
         />
       )}
 
-      {/* ── Markdown Content ──────────────────────────── */}
-      <div className="article-markdown">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {article.content}
-        </ReactMarkdown>
-      </div>
+      {/* ── Article Content (rich HTML) ────────────────────── */}
+      <div
+        className="article-rich-content"
+        dangerouslySetInnerHTML={{ __html: article.content }}
+      />
 
       {/* ── Toast ─────────────────────────────────────── */}
       {toast && (
